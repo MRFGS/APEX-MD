@@ -1,6 +1,5 @@
 const { cmd, commands } = require('../command');
-const axios = require('axios');
-const ytdl = require('@distube/youtube-dl');
+const play = require('play-dl');
 
 cmd({
     pattern: "song",
@@ -13,34 +12,29 @@ async (conn, mek, m, { from, quoted, body, isCmd, command, args, q, reply }) => 
     try {
         if (!q) return reply("Please provide a URL or Name ❗");
 
-        // YouTube video search using axios and URL construction
-        const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
-        const { data } = await axios.get(searchUrl);
-        const videoId = data.split('watch?v=')[1].split('"')[0];
-        const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-        
-        // Fetching video information
-        const videoInfo = await ytdl.getInfo(videoUrl);
-        const videoDetails = videoInfo.videoDetails;
+        // Search for the video
+        const searchResults = await play.search(q, { limit: 1 });
+        const video = searchResults[0];
+        const videoUrl = video.url;
 
         let desc = `
 *❍🌟 APEX-MD SONG DOWNLOADER 🌟❍*
 
-*Title:* ${videoDetails.title}
-*Description:* ${videoDetails.shortDescription}
-*Duration:* ${videoDetails.lengthSeconds} seconds
-*Views:* ${videoDetails.viewCount}
-*Published:* ${videoDetails.publishDate}
+*Title:* ${video.title}
+*Description:* ${video.description}
+*Duration:* ${video.durationRaw}
+*Views:* ${video.views}
+*Published:* ${video.uploadedAt}
 
 > *Powered by Team MRFG ❍ (SxL)*
         `;
 
         // Send video information with thumbnail
-        await conn.sendMessage(from, { image: { url: videoDetails.thumbnails[0].url }, caption: desc }, { quoted: mek });
+        await conn.sendMessage(from, { image: { url: video.thumbnails[0].url }, caption: desc }, { quoted: mek });
 
-        // Download and send audio
-        const audioStream = await ytdl(videoUrl, { filter: 'audioonly', quality: 'highestaudio' });
-        await conn.sendMessage(from, { audio: { stream: audioStream }, mimetype: "audio/mpeg" }, { quoted: mek });
+        // Download audio
+        const audioStream = await play.stream(videoUrl);
+        await conn.sendMessage(from, { audio: { stream: audioStream.stream }, mimetype: "audio/mpeg" }, { quoted: mek });
 
     } catch (e) {
         console.error(e);
