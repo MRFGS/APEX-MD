@@ -1,3 +1,4 @@
+const { cmd, commands } = require('../command');
 const puppeteer = require('puppeteer');
 const yts = require('yt-search');
 
