@@ -1,10 +1,10 @@
 const { cmd, commands } = require('../command');
-const ytdl = require('ytdl-core');
 const yts = require('yt-search');
+const fg = require('api-dylux');
 
 cmd({
     pattern: "song",
-    desc: "Download YouTube Audios",
+    desc: "Download YouTube Audios & Videos",
     category: "download",
     filename: __filename
 },
@@ -21,11 +21,11 @@ async (conn, mek, m, { from, quoted, body, isCmd, command, args, q, reply }) => 
         let desc = `
 *❍🌟 APEX-MD SONG DOWNLOADER 🌟❍*
 
-*Title:* ${video.title}
-*Description:* ${video.description}
-*Duration:* ${video.timestamp}
-*Views:* ${video.views}
-*Published:* ${video.ago}
+*Title ❍➤* ${video.title}
+*Description ❍➤* ${video.description}
+*Duration ❍➤* ${video.timestamp}
+*Views ❍➤* ${video.views}
+*Published ❍➤* ${video.ago}
 
 > *Powered by Team MRFG ❍ (SxL)*
         `;
@@ -33,9 +33,12 @@ async (conn, mek, m, { from, quoted, body, isCmd, command, args, q, reply }) => 
         // Send video information with thumbnail
         await conn.sendMessage(from, { image: { url: video.thumbnail }, caption: desc }, { quoted: mek });
 
-        // Download and send audio using ytdl-core
-        const audioStream = ytdl(videoUrl, { filter: 'audioonly', quality: 'highestaudio' });
-        await conn.sendMessage(from, { audio: { stream: audioStream }, mimetype: "audio/mpeg" }, { quoted: mek });
+        // Download the audio using api-dylux
+        const download = await fg.yta(videoUrl);
+        const downloadUrl = download.dl_url;
+
+        // Send the audio
+        await conn.sendMessage(from, { audio: { url: downloadUrl }, mimetype: "audio/mpeg" }, { quoted: mek });
 
     } catch (e) {
         console.error(e);
