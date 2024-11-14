@@ -1,9 +1,10 @@
 const { cmd, commands } = require('../command');
-const play = require('play-dl');
+const ytdl = require('ytdl-core');
+const yts = require('yt-search');
 
 cmd({
     pattern: "song",
-    desc: "Download YouTube Audios & Videos",
+    desc: "Download YouTube Audios",
     category: "download",
     filename: __filename
 },
@@ -12,9 +13,9 @@ async (conn, mek, m, { from, quoted, body, isCmd, command, args, q, reply }) => 
     try {
         if (!q) return reply("Please provide a URL or Name ❗");
 
-        // Search for the video
-        const searchResults = await play.search(q, { limit: 1 });
-        const video = searchResults[0];
+        // Search for the video using yt-search
+        const searchResults = await yts(q);
+        const video = searchResults.videos[0];  // Selecting the first result
         const videoUrl = video.url;
 
         let desc = `
@@ -22,19 +23,19 @@ async (conn, mek, m, { from, quoted, body, isCmd, command, args, q, reply }) => 
 
 *Title:* ${video.title}
 *Description:* ${video.description}
-*Duration:* ${video.durationRaw}
+*Duration:* ${video.timestamp}
 *Views:* ${video.views}
-*Published:* ${video.uploadedAt}
+*Published:* ${video.ago}
 
 > *Powered by Team MRFG ❍ (SxL)*
         `;
 
         // Send video information with thumbnail
-        await conn.sendMessage(from, { image: { url: video.thumbnails[0].url }, caption: desc }, { quoted: mek });
+        await conn.sendMessage(from, { image: { url: video.thumbnail }, caption: desc }, { quoted: mek });
 
-        // Download audio
-        const audioStream = await play.stream(videoUrl);
-        await conn.sendMessage(from, { audio: { stream: audioStream.stream }, mimetype: "audio/mpeg" }, { quoted: mek });
+        // Download and send audio using ytdl-core
+        const audioStream = ytdl(videoUrl, { filter: 'audioonly', quality: 'highestaudio' });
+        await conn.sendMessage(from, { audio: { stream: audioStream }, mimetype: "audio/mpeg" }, { quoted: mek });
 
     } catch (e) {
         console.error(e);
