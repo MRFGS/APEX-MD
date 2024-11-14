@@ -1,33 +1,13 @@
 const { cmd, commands } = require('../command');
-const puppeteer = require('puppeteer');
+const playDL = require('play-dl');
 const yts = require('yt-search');
-
-async function getVideoInfo(url) {
-    const browser = await puppeteer.launch({ headless: true });
-    const page = await browser.newPage();
-    await page.goto(url, { waitUntil: 'domcontentloaded' });
-
-    // Wait for video metadata to load
-    await page.waitForSelector('h1.title');
-
-    const videoInfo = await page.evaluate(() => {
-        const title = document.title;
-        const description = document.querySelector('meta[name="description"]').content;
-        return { title, description };
-    });
-
-    await browser.close();
-    return videoInfo;
-}
 
 cmd({
     pattern: "song",
     desc: "Download YouTube Audio",
     category: "download",
     filename: __filename
-},
-
-async (conn, mek, m, { from, quoted, body, isCmd, command, args, q, reply }) => {
+}, async (conn, mek, m, { from, quoted, body, isCmd, command, args, q, reply }) => {
     try {
         if (!q) return reply("Please provide a URL or Name ❗");
 
@@ -51,9 +31,19 @@ async (conn, mek, m, { from, quoted, body, isCmd, command, args, q, reply }) => 
         // Send video information with thumbnail
         await conn.sendMessage(from, { image: { url: video.thumbnail }, caption: desc }, { quoted: mek });
 
-        // Use Puppeteer to simulate a real browser and fetch the stream URL
-        const streamInfo = await getVideoInfo(videoUrl);
-        const audioUrl = streamInfo.audioUrl;
+        // Download the audio using play-dl and set custom headers
+        const stream = await playDL.stream(videoUrl, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
+        });
+
+        // Check if stream URL exists
+        if (!stream || !stream.url) {
+            return reply("Failed to fetch the audio stream ❗");
+        }
+
+        const audioUrl = stream.url;
 
         // Send the audio
         await conn.sendMessage(from, { audio: { url: audioUrl }, mimetype: "audio/mpeg" }, { quoted: mek });
