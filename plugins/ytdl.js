@@ -15,6 +15,9 @@ async (conn, mek, m, { from, quoted, body, isCmd, command, args, q, isGroup, sen
 
         const search = await yts(q);
         const data = search.videos[0];
+
+        if (!data) return reply("No video found for the given query.");
+
         const url = data.url;
 
         let desc = `
@@ -32,14 +35,25 @@ async (conn, mek, m, { from, quoted, body, isCmd, command, args, q, isGroup, sen
         // Send video information with thumbnail
         await conn.sendMessage(from, { image: { url: data.thumbnail }, caption: desc }, { quoted: mek });
 
-        // Download audio using ytdl-core
+        // Attempt to get audio stream using ytdl-core
         const stream = ytdl(url, { filter: 'audioonly' });
+
+        // Check if the stream is valid
+        if (!stream) {
+            return reply("Could not retrieve the audio. Please try again later.");
+        }
 
         // Send audio
         await conn.sendMessage(from, { audio: stream, mimetype: "audio/mpeg" }, { quoted: mek });
 
     } catch (e) {
-        console.log(e);
-        reply(`Error: ${e}`);
+        console.error(e);
+        
+        // Handle specific errors
+        if (e instanceof MinigetError && e.statusCode === 410) {
+            return reply("The video is no longer available for download (410 error).");
+        }
+
+        reply(`An error occurred: ${e.message}`);
     }
 });
