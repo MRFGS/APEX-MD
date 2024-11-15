@@ -1,6 +1,6 @@
 const { cmd } = require('../command');
 const miniget = require('miniget');
-const fs = require('fs');
+const fs = require('fs-extra'); // Use fs-extra to ensure directories exist
 const path = require('path');
 
 // Function to validate URL
@@ -9,9 +9,23 @@ function validateUrl(url) {
     return mediafireRegex.test(url);
 }
 
+// Function to ensure the directory exists before downloading
+async function ensureDirectoryExists(directory) {
+    try {
+        await fs.ensureDir(directory); // Creates the directory if it doesn't exist
+    } catch (err) {
+        console.error(`Error creating directory: ${err.message}`);
+        throw err;
+    }
+}
+
 // Function to handle the file download from MediaFire
 async function downloadFile(url, destination) {
     try {
+        // Ensure the download directory exists
+        const downloadDir = path.dirname(destination);
+        await ensureDirectoryExists(downloadDir);
+
         // Creating a write stream to save the file
         const fileStream = fs.createWriteStream(destination);
         
