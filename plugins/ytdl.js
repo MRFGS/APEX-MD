@@ -1,5 +1,5 @@
 const { cmd, commands } = require('../command');
-const ytdl = require('ytdl-core');
+const axios = require('axios');
 const yts = require('yt-search');
 
 cmd({
@@ -15,9 +15,6 @@ async (conn, mek, m, { from, quoted, body, isCmd, command, args, q, isGroup, sen
 
         const search = await yts(q);
         const data = search.videos[0];
-
-        if (!data) return reply("No video found for the given query.");
-
         const url = data.url;
 
         let desc = `
@@ -35,25 +32,21 @@ async (conn, mek, m, { from, quoted, body, isCmd, command, args, q, isGroup, sen
         // Send video information with thumbnail
         await conn.sendMessage(from, { image: { url: data.thumbnail }, caption: desc }, { quoted: mek });
 
-        // Attempt to get audio stream using ytdl-core
-        const stream = ytdl(url, { filter: 'audioonly' });
+        // Request to the API to get the MP3 download link
+        const apiUrl = `https://api-pink-venom.vercel.app/api/ytmp3?url=${encodeURIComponent(url)}`;
+        const response = await axios.get(apiUrl);
+        
+        if (response.data && response.data.link) {
+            const downloadUrl = response.data.link;
 
-        // Check if the stream is valid
-        if (!stream) {
-            return reply("Could not retrieve the audio. Please try again later.");
+            // Send audio
+            await conn.sendMessage(from, { audio: { url: downloadUrl }, mimetype: "audio/mpeg" }, { quoted: mek });
+        } else {
+            reply("Sorry, could not retrieve the audio download link.");
         }
-
-        // Send audio
-        await conn.sendMessage(from, { audio: stream, mimetype: "audio/mpeg" }, { quoted: mek });
 
     } catch (e) {
-        console.error(e);
-        
-        // Handle specific errors
-        if (e instanceof MinigetError && e.statusCode === 410) {
-            return reply("The video is no longer available for download (410 error).");
-        }
-
-        reply(`An error occurred: ${e.message}`);
+        console.log(e);
+        reply(`Error: ${e}`);
     }
 });
