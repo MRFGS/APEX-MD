@@ -1,55 +1,61 @@
 const { cmd, commands } = require('../command');
-const playDL = require('play-dl');
+const fg = require('api-dylux');
 const yts = require('yt-search');
 
 cmd({
     pattern: "song",
-    desc: "Download YouTube Audio",
+    desc: "Download YouTube Audios",
     category: "download",
     filename: __filename
-}, async (conn, mek, m, { from, quoted, body, isCmd, command, args, q, reply }) => {
-    try {
-        if (!q) return reply("Please provide a URL or Name ❗");
+},
 
-        // Search for the video using yt-search
-        const searchResults = await yts(q);
-        const video = searchResults.videos[0];  // Selecting the first result
-        const videoUrl = video.url;
+async (conn, mek, m, { from, quoted, body, isCmd, command, args, q, isGroup, sender, reply }) => {
+    try {
+        if (!q) return reply("❗ Please provide a YouTube URL or song name.");
+
+        // Search YouTube
+        const search = await yts(q);
+        if (!search || !search.videos || search.videos.length === 0) {
+            return reply("❗ Could not find any results for your query.");
+        }
+        
+        const data = search.videos[0];
+        const url = data.url;
 
         let desc = `
 *❍🌟 APEX-MD SONG DOWNLOADER 🌟❍*
 
-*Title:* ${video.title}
-*Description:* ${video.description}
-*Duration:* ${video.timestamp}
-*Views:* ${video.views}
-*Published:* ${video.ago}
+*Title:* ${data.title}
+*Description:* ${data.description}
+*Duration:* ${data.timestamp}
+*Views:* ${data.views}
+*Published:* ${data.ago}
 
 > *Powered by Team MRFG ❍ (SxL)*
         `;
 
         // Send video information with thumbnail
-        await conn.sendMessage(from, { image: { url: video.thumbnail }, caption: desc }, { quoted: mek });
+        await conn.sendMessage(from, { image: { url: data.thumbnail }, caption: desc }, { quoted: mek });
 
-        // Download the audio using play-dl and set custom headers
-        const stream = await playDL.stream(videoUrl, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        // Download audio
+        try {
+            let down = await fg.yta(url);
+            if (!down || !down.dl_url) {
+                return reply("❗ Failed to get the download link. Please try again later.");
             }
-        });
 
-        // Check if stream URL exists
-        if (!stream || !stream.url) {
-            return reply("Failed to fetch the audio stream ❗");
+            let downloadUrl = down.dl_url;
+            
+            // Send audio
+            await conn.sendMessage(from, { audio: { url: downloadUrl }, mimetype: "audio/mpeg" }, { quoted: mek });
+            reply("✅ Audio downloaded and sent successfully!");
+        } catch (downloadError) {
+            console.error("Download error:", downloadError);
+            reply("❗ Error occurred while downloading the audio. Please try again later.");
         }
-
-        const audioUrl = stream.url;
-
-        // Send the audio
-        await conn.sendMessage(from, { audio: { url: audioUrl }, mimetype: "audio/mpeg" }, { quoted: mek });
-
+        
     } catch (e) {
-        console.error(e);
-        reply(`Error: ${e.message}`);
+        console.error("General error:", e);
+        reply("❗ An unexpected error occurred. Please check the query or try again later.");
     }
 });
